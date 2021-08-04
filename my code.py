@@ -45,7 +45,7 @@ def covariance_differance(pump,n):
     n_modes=(pump_length+1)//2
     #mode index
     #generates a comb of modes centered on index 0
-    
+ #bleh   
     #the index for the pump positions considered remember the firt and last one 
     #in this index and mode index are the same "point".
     
