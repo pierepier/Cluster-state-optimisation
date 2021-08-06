@@ -79,7 +79,7 @@ def covariance_differance(pump,n):
     #omega_0p = comb_freqs + 3*2*np.pi
     
     #dissipation rates (kHZ)
-    gamma = 2*np.pi*20
+    gamma = 2*np.pi*2
     
     
     #bias point
@@ -152,8 +152,7 @@ def covariance_differance(pump,n):
     #noise from loss channel, we can assume it is at the same temperature as the input channel
     V_loss = V_input
     #output statistics
-    
-    V_output = np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))
+    V_output = np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))-np.eye(8)
     
     G=nx.grid_2d_graph(n, n, periodic=False, create_using=None) 
     adj=nx.to_numpy_matrix(G)
@@ -170,7 +169,7 @@ def covariance_differance(pump,n):
     R=0.5
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
-    V_teori=np.dot(SQ,S.T)
+    V_teori=np.dot(SQ,S.T)-np.eye(8)
     #calculate the differance and norm.
     V_diff=np.linalg.norm(V_teori-V_output)
     return V_diff
@@ -219,7 +218,7 @@ def covariances(pump,n):
     #omega_0p = comb_freqs + 3*2*np.pi
     
     #dissipation rates (kHZ)
-    gamma = 2*np.pi*20
+    gamma = 2*np.pi*2
     
     
     #bias point
@@ -242,7 +241,7 @@ def covariances(pump,n):
         for pos, i1 in enumerate(idler_positions):
             #print("POS",pos, i1)
             if np.any(mode_index == i1) and s != i1:
-                print("n %d, pos %d, i1 %d"%(s, pos, i1))
+                # print("n %d, pos %d, i1 %d"%(s, pos, i1))
                 #coupling strength given below
                 conver_rate = -pump_strength[pos]
                 M[s,i1+n_modes] = conver_rate
@@ -256,7 +255,7 @@ def covariances(pump,n):
     
     #print(np.real(M[:n_modes,n_modes:]))
     #exit()
-    print(M)
+    # print(M)
     
     K = np.identity(2*n_modes)*np.sqrt(gamma)
     
@@ -292,31 +291,31 @@ def covariances(pump,n):
     #noise from loss channel, we can assume it is at the same temperature as the input channel
     V_loss = V_input
     #output statistics
-    
-    V_output = np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))
-    
     G=nx.grid_2d_graph(n, n, periodic=False, create_using=None) 
     adj=nx.to_numpy_matrix(G)
-    # $U=(I+iV)(V^2+I)^{-1/2}=AB^{-1/2}
     d=len(adj)
     I=np.eye(d)
+    V_output = np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))-np.eye(8)
+   
+    # $U=(I+iV)(V^2+I)^{-1/2}=AB^{-1/2}
     Binv=adj@adj+I
     B=np.linalg.inv(Binv)
     X1=LA.sqrtm(B)
     Y1=adj*X1
     S=np.block([[X1,-Y1],[Y1,X1]])
-    #tau=1/gamma
-    #R=np.mean(pump_amp*tau)
-    R=0.5
+    tau=1/gamma
+    R=np.mean(pump_amp*tau)
+    #R=0.1
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
-    V_teori=np.dot(SQ,S.T)
+    V_teori=np.dot(SQ,S.T)-np.eye(8)
     return[V_output,V_teori]
 
 n=2
 n_2=n**2
 pmp_tot=4*n_2-2
-pump=np.zeros(pmp_tot)
+#pump=np.zeros(pmp_tot)
+pump=[0,0,30e3*1e-6,30e3*1e-6,30e3*1e-6,0,0,0,0,0,np.pi,0,0,0]
 b1=2*n_2-1
 boundarys=[]
 boundary=(0,20)
@@ -340,3 +339,7 @@ V_general=covariances(pump1,n)
 V_output=V_general[0]
 V_teori=V_general[1]
 V_diff=np.linalg.norm(V_teori-V_output)
+fig, ax  = plt.subplots(2,1)
+ax[0].imshow(V_teori)
+ax[1].imshow(V_output)
+ax[0].set_title("ideal")
