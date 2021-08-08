@@ -90,19 +90,19 @@ def covariance_differance(pump,n):
     #mode matrix
     M = np.zeros(( n_modes*2, n_modes*2 ), dtype = complex)
     
-    print("mode index", mode_index)
-    print("pump_position", pump_position)
+    #print("mode index", mode_index)
+    #print("pump_position", pump_position)
     
     for s in mode_index: # mode index is "regular array"
     
         idler_positions = pump_position - s
-        print("idler pos", idler_positions, "n_idx", s)
+        #print("idler pos", idler_positions, "n_idx", s)
     
         #constructing the mode coupling matrix M
         for pos, i1 in enumerate(idler_positions):
             #print("POS",pos, i1)
             if np.any(mode_index == i1) and s != i1:
-                print("n %d, pos %d, i1 %d"%(s, pos, i1))
+                #print("n %d, pos %d, i1 %d"%(s, pos, i1))
                 #coupling strength given below
                 conver_rate = -pump_strength[pos]
                 M[s,i1+n_modes] = conver_rate
@@ -116,7 +116,7 @@ def covariance_differance(pump,n):
     
     #print(np.real(M[:n_modes,n_modes:]))
     #exit()
-    print(M)
+    #print(M)
     
     K = np.identity(2*n_modes)*np.sqrt(gamma)
     
@@ -152,7 +152,7 @@ def covariance_differance(pump,n):
     #noise from loss channel, we can assume it is at the same temperature as the input channel
     V_loss = V_input
     #output statistics
-    V_output = np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))-np.eye(8)
+    V_output = np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))-np.identity(2*n_modes)
     
     G=nx.grid_2d_graph(n, n, periodic=False, create_using=None) 
     adj=nx.to_numpy_matrix(G)
@@ -169,7 +169,7 @@ def covariance_differance(pump,n):
     R=0.5
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
-    V_teori=np.dot(SQ,S.T)-np.eye(8)
+    V_teori=np.dot(SQ,S.T)-np.identity(2*n_modes)
     #calculate the differance and norm.
     V_diff=np.linalg.norm(V_teori-V_output)
     return V_diff
@@ -229,13 +229,13 @@ def covariances(pump,n):
     #mode matrix
     M = np.zeros(( n_modes*2, n_modes*2 ), dtype = complex)
     
-    print("mode index", mode_index)
-    print("pump_position", pump_position)
+    #print("mode index", mode_index)
+    #print("pump_position", pump_position)
     
     for s in mode_index: # mode index is "regular array"
     
         idler_positions = pump_position - s
-        print("idler pos", idler_positions, "n_idx", s)
+        #print("idler pos", idler_positions, "n_idx", s)
     
         #constructing the mode coupling matrix M
         for pos, i1 in enumerate(idler_positions):
@@ -295,7 +295,7 @@ def covariances(pump,n):
     adj=nx.to_numpy_matrix(G)
     d=len(adj)
     I=np.eye(d)
-    V_output = np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))-np.eye(8)
+    V_output = np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))-np.identity(2*n_modes)
    
     # $U=(I+iV)(V^2+I)^{-1/2}=AB^{-1/2}
     Binv=adj@adj+I
@@ -308,14 +308,14 @@ def covariances(pump,n):
     #R=0.1
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
-    V_teori=np.dot(SQ,S.T)-np.eye(8)
+    V_teori=np.dot(SQ,S.T)-np.identity(2*n_modes)
     return[V_output,V_teori]
 
-n=2
+n=3
 n_2=n**2
 pmp_tot=4*n_2-2
-#pump=np.zeros(pmp_tot)
-pump=[0,0,30e3*1e-6,30e3*1e-6,30e3*1e-6,0,0,0,0,0,np.pi,0,0,0]
+pump=np.zeros(pmp_tot)
+#pump=[0,0,30e3*1e-6,30e3*1e-6,30e3*1e-6,0,0,0,0,0,np.pi,0,0,0]
 b1=2*n_2-1
 boundarys=[]
 boundary=(0,20)
@@ -335,11 +335,21 @@ plt.ylabel("The amplitude")
 plt.xlabel("The pump index")
 plt.xticks(range1)
 plt.title('pump positions and amplitudes ')
+
 V_general=covariances(pump1,n)
 V_output=V_general[0]
 V_teori=V_general[1]
 V_diff=np.linalg.norm(V_teori-V_output)
-fig, ax  = plt.subplots(2,1)
-ax[0].imshow(V_teori)
-ax[1].imshow(V_output)
-ax[0].set_title("ideal")
+
+fig, ax  = plt.subplots()
+teoriplot=ax.imshow(V_teori)
+ax.set_title("Teori")
+plt.colorbar(teoriplot)
+
+fig1, ax1  = plt.subplots()
+outputplot=ax1.imshow(V_output)
+ax1.set_title("output")
+plt.colorbar(outputplot)
+
+
+
