@@ -34,7 +34,14 @@ import networkx as nx
 from scipy.optimize import minimize
 import scipy.linalg as LA    
 import matplotlib.pyplot as plt 
-import cma
+
+##reorder cov matrix between (x1,p1,...,xn, pn) and (x1,...xn, p1,...,pn)
+def permute_matrix(matrix, d):
+    perm=np.zeros([2*d,2*d])
+    for i in range(0,d):
+        perm[2*i,i] = 1
+        perm[2*i+1,d+i] = 1
+    return perm.transpose() @ matrix @ perm
 
 def covariance(pump,n):
     pumpinfo=np.array_split(pump,2)
@@ -102,7 +109,7 @@ def covariance(pump,n):
         #constructing the mode coupling matrix M
         for pos, i1 in enumerate(idler_positions):
             #print("POS",pos, i1)
-            if np.any(mode_index == i1) and s != i1:
+            if np.any(mode_index == i1):
                 #print("n %d, pos %d, i1 %d"%(s, pos, i1))
                 #coupling strength given below
                 conver_rate = -pump_strength[pos]
@@ -139,21 +146,23 @@ def covariance(pump,n):
     S_xp = X.dot(S).dot(X_inv)
     
     #check if it is symplectic
-    symp = np.block( [ [np.zeros((n_modes, n_modes)), np.identity(n_modes)], [-1*np.identity(n_modes), np.zeros((n_modes, n_modes))] ] )
+    # symp = np.block( [ [np.zeros((n_modes, n_modes)), np.identity(n_modes)], [-1*np.identity(n_modes), np.zeros((n_modes, n_modes))] ] )
     
-    symp2 = S_xp.dot(symp).dot(np.transpose(S_xp))
+    # symp2 = S_xp.dot(symp).dot(np.transpose(S_xp))
     
-    result = np.all(np.round( np.real(symp2) , 3) == symp )
-    print(' The transformation is symplectic: ' + str(result) )
+    # result = np.all(np.round( np.real(symp2) , 3) == symp )
+    # print(' The transformation is symplectic: ' + str(result) )
     
     # calculate resulting covariance matrix
     #input noise:
     n_noise = 0
     V_input = (2*n_noise + 1)*np.identity(2*n_modes)
     #noise from loss channel, we can assume it is at the same temperature as the input channel
-    V_loss = V_input
+    #V_loss = V_input
     #output statistics
-    V_output = np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))-np.identity(2*n_modes)
+    V_outputxp=np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))
+    #rewrite in xxpp
+    V_output=permute_matrix(V_outputxp, n_modes )
     
     G=nx.grid_2d_graph(n, n, periodic=False, create_using=None) 
     adj=nx.to_numpy_matrix(G)
@@ -170,7 +179,7 @@ def covariance(pump,n):
     R=0.5
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
-    V_teori=np.dot(SQ,S.T)-np.identity(2*n_modes)
+    V_teori=np.dot(SQ,S.T)
     #calculate the differance and norm.
     V_diff=np.linalg.norm(V_teori-V_output)
     return [V_output,V_teori,V_diff]  
@@ -199,30 +208,36 @@ def optimizationfunction(pump,n):
     C=covariance(pump,n)
     covar=C[0]
     nullifiers=calculateNullifiers(covar,n)
+    #nullifiers=calculateNullifiers(covar,n)
     limit=np.max(nullifiers)
     return limit
 
-
+def optimizer(n,pump):
+    #pump=[0,0,30e3*1e-6,30e3*1e-6,30e3*1e-6,0,0,0,0,0,np.pi,0,0,0]
+    n_2=n**2
+    pmp_tot=4*n_2-2
+    boundarys=[]
+    boundary=(0,20)
+    for bnds in range(pmp_tot):
+        if bnds<b1:
+            boundarys.append(boundary)
+        else:
+            boundarys.append((0,2*np.pi))
+    
+    out=minimize(optimizationfunction,pump,n,method ='nelder-mead',bounds=boundarys)
+    pump1=out.x
+    return pump1
 n=2
 n_2=n**2
 pmp_tot=4*n_2-2
-pump=np.ones(pmp_tot)
-#pump=[0,0,30e3*1e-6,30e3*1e-6,30e3*1e-6,0,0,0,0,0,np.pi,0,0,0]
 b1=2*n_2-1
-boundarys=[]
-boundary=(0,20)
-for bnds in range(pmp_tot):
-    if bnds<b1:
-        boundarys.append(boundary)
-    else:
-        boundarys.append((0,2*np.pi))
-
-out=minimize(optimizationfunction,pump,n,method = 'Nelder-Mead',bounds=boundarys)
-pump1=out.x
+pump=np.zeros(pmp_tot)
+pump1=optimizer(n,pump)
 pumpamp=pump1[:b1]
 pumpphi=pump1[b1:]
 range1=np.arange(b1)
-
+C1=covariance(pump1,n)
+output=C1[0]   
 plt.bar(range1,pumpamp)
 plt.ylabel("The amplitude")
 plt.xlabel("The pump index")
