@@ -325,7 +325,7 @@ for bnds in range(pmp_tot):
     else:
         boundarys.append((0,2*np.pi))
 
-out=minimize(covariance_differance,pump,n,method = 'Nelder-Mead',bounds=boundarys)
+out=minimize(covariance_differance,pump,n,method = 'Powell',bounds=boundarys)
 pump1=out.x
 pumpamp=pump1[:b1]
 pumpphi=pump1[b1:]

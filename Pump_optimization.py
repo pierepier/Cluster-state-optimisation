@@ -34,6 +34,7 @@ import networkx as nx
 from scipy.optimize import minimize
 import scipy.linalg as LA    
 import matplotlib.pyplot as plt 
+import cma  
 
 ##reorder cov matrix between (x1,p1,...,xn, pn) and (x1,...xn, p1,...,pn)
 def permute_matrix(matrix, d):
@@ -109,7 +110,7 @@ def covariance(pump,n):
         #constructing the mode coupling matrix M
         for pos, i1 in enumerate(idler_positions):
             #print("POS",pos, i1)
-            if np.any(mode_index == i1):
+            if np.any(mode_index == i1) and s != i1 :
                 #print("n %d, pos %d, i1 %d"%(s, pos, i1))
                 #coupling strength given below
                 conver_rate = -pump_strength[pos]
@@ -121,7 +122,9 @@ def covariance(pump,n):
     
         M[s, s] = diag_val
         M[s+n_modes, s+n_modes] = diag_val_conj
+  
     
+    # ax.set_title('weighted covariance matrix ON')
     #print(np.real(M[:n_modes,n_modes:]))
     #exit()
     #print(M)
@@ -208,16 +211,16 @@ def optimizationfunction(pump,n):
     C=covariance(pump,n)
     covar=C[0]
     nullifiers=calculateNullifiers(covar,n)
-    #nullifiers=calculateNullifiers(covar,n)
     limit=np.max(nullifiers)
     return limit
 
 def optimizer(n,pump):
+
     #pump=[0,0,30e3*1e-6,30e3*1e-6,30e3*1e-6,0,0,0,0,0,np.pi,0,0,0]
     n_2=n**2
     pmp_tot=4*n_2-2
     boundarys=[]
-    boundary=(0,20)
+    boundary=(0,50)
     for bnds in range(pmp_tot):
         if bnds<b1:
             boundarys.append(boundary)
@@ -227,20 +230,138 @@ def optimizer(n,pump):
     out=minimize(optimizationfunction,pump,n,method ='nelder-mead',bounds=boundarys)
     pump1=out.x
     return pump1
+
+def Mmatrixmaker(pump,n):
+    pumpinfo=np.array_split(pump,2)
+    pump_amp=pumpinfo[0]
+    pump_phase=pumpinfo[1]
+    #number of modes in covariance matrix
+    pump_length=len(pump_amp)
+    n_modes=(pump_length+1)//2
+     #mode index
+     #generates a comb of modes centered on index 0 
+     #the index for the pump positions considered remember the firt and last one 
+     #in this index and mode index are the same "point".
+     
+    n_index = np.arange(pump_length)//2
+     
+     #the indexes for modes in the system
+    mode_index=n_index[0::2]
+    #--------3 wave mixing -----------------------
+    #pump_frequencies (kHz)
+    p1_freq = 2*  2*np.pi*4.3023e6
+    p2_freq = 2*  2*np.pi*4.2977e6
+    
+    #mode frequencies, set up frequency comb
+    center_comb_freq = (p2_freq + p1_freq)/4
+    comb_det = np.abs(p2_freq - p1_freq)/4
+    
+    comb_freqs = center_comb_freq + (mode_index - n_modes//2 )*comb_det
+    
+    
+    #-----------set pump positions and strengths -------------------
+    #pump mode positions, enter a numpy array
+    pump_pos=np.asarray(np.where(pump_amp!=0))
+    pump_position=pump_pos[0]
+    #effective pump amplitude  
+    pump_strength = pump_amp[pump_position]*np.exp(1j*pump_phase[pump_position])
+    
+    #-------------- resonances and losses --------------------------
+    
+    # #JPA resonance (kHz)
+    omega_0 = np.array([ 2*np.pi*4.3e6])
+    
+    #SAW resonances (kHz)
+    #omega_0p = comb_freqs + 3*2*np.pi
+    
+    #dissipation rates (kHZ)
+    gamma = 2*np.pi*20
+    
+    
+    #bias point
+    phi_DC = 0.6*np.pi
+    
+    #------generate scattering matrix--------------
+    #using only up to first order
+    #mode matrix
+    M = np.zeros(( n_modes*2, n_modes*2 ), dtype = complex)
+    
+    #print("mode index", mode_index)
+    #print("pump_position", pump_position)
+    
+    for s in mode_index: # mode index is "regular array"
+    
+        idler_positions = pump_position - s
+        #print("idler pos", idler_positions, "n_idx", s)
+    
+        #constructing the mode coupling matrix M
+        for pos, i1 in enumerate(idler_positions):
+            #print("POS",pos, i1)
+            if np.any(mode_index == i1) and s != i1 :
+                #print("n %d, pos %d, i1 %d"%(s, pos, i1))
+                #coupling strength given below
+                conver_rate = -pump_strength[pos]
+                print
+                M[s,i1+n_modes] = conver_rate
+                M[s+n_modes, i1] = -np.conjugate(conver_rate)
+    
+        diag_val = comb_freqs[n] - omega_0 + 1j*gamma/2
+        diag_val_conj = -np.conjugate(diag_val)
+    
+        M[s, s] = diag_val
+        M[s+n_modes, s+n_modes] = diag_val_conj
+    return M
+
 n=2
 n_2=n**2
 pmp_tot=4*n_2-2
 b1=2*n_2-1
 pump=np.zeros(pmp_tot)
-pump1=optimizer(n,pump)
+#pump1=optimizer(n,pump)
+pump1=[0,0,0,30,0,0,0,0,0,0,np.pi,0,0,0]
+#pump1=[0,0,30,30,30,0,0,0,0,0,np.pi,0,0,0]
 pumpamp=pump1[:b1]
 pumpphi=pump1[b1:]
 range1=np.arange(b1)
 C1=covariance(pump1,n)
+M=Mmatrixmaker(pump1,n)
+M1=np.abs(M)
+
 output=C1[0]   
+
+plt.figure(0)
 plt.bar(range1,pumpamp)
 plt.ylabel("The amplitude")
 plt.xlabel("The pump index")
 plt.xticks(range1)
 plt.title('pump positions and amplitudes ')
 
+plt.figure(1)
+plt.imshow(M1)
+plt.colorbar()
+plt.show()
+plt.title("M_matrix")
+
+
+plt.figure(3)
+plt.imshow(output)
+plt.colorbar()
+plt.show()
+plt.title("output")
+
+
+# fig, ax = plt.subplots(1)
+# outputplot=ax.imshow(M_real)
+# ax.set_title("M_real")
+# plt.colorbar(M_real)
+
+
+
+
+
+
+# fig1, ax1  = plt.subplots(1)
+# outputplot=ax1.imshow(output)
+# ax1.set_title("output")
+# plt.colorbar(outputplot)
+ 
