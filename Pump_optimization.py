@@ -21,7 +21,7 @@ Parameters
         the amplitudes with the same indexing.
         
         example:
-            pump=[0,0,30e3*1e-9,30e3*1e-9,30e3*1e-9,0,0,0,0,0,np.pi,0,0,0]
+            pump=[0,0,30,30,30,0,0,0,0,0,np.pi,0,0,0]
 
 n_edges : *int*
         Indicates the size of the square cluster based on the number of 
@@ -34,7 +34,13 @@ import networkx as nx
 from scipy.optimize import minimize
 import scipy.linalg as LA    
 import matplotlib.pyplot as plt 
-import cma  
+import cma 
+ 
+def scale(X, x_min, x_max):
+    nom = (X-X.min(axis=0))*(x_max-x_min)
+    denom = X.max(axis=0) - X.min(axis=0)
+    denom[denom==0] = 1
+    return x_min + nom/denom
 
 ##reorder cov matrix between (x1,p1,...,xn, pn) and (x1,...xn, p1,...,pn)
 def permute_matrix(matrix, d):
@@ -187,10 +193,12 @@ def covariance(pump,n):
     V_diff=np.linalg.norm(V_teori-V_output)
     return [V_output,V_teori,V_diff]  
 
+
 def build_square_adjacancey(n):
     G=nx.grid_2d_graph(n, n, periodic=False, create_using=None) 
     A=nx.to_numpy_matrix(G)
     return A
+
 
 def calculateNullifiers(covar,n):
     d=n**2
@@ -207,29 +215,38 @@ def calculateNullifiers(covar,n):
         
     return nullifiers
 
+
 def optimizationfunction(pump,n):
+    pump2=[0,0,30,30,30,0,0,0,0,0,np.pi,0,0,0]
+    C2=covariance(pump2,n)
     C=covariance(pump,n)
-    covar=C[0]
-    nullifiers=calculateNullifiers(covar,n)
-    limit=np.max(nullifiers)
-    return limit
+    #diff=C[2]
+    diff=np.linalg.norm(C2[0]-C[0])
+    #covar=C[0]
+    #nullifiers=calculateNullifiers(covar,n)
+    #limit=np.max(nullifiers)
+    #return limit
+    return diff
+
 
 def optimizer(n,pump):
-
-    #pump=[0,0,30e3*1e-6,30e3*1e-6,30e3*1e-6,0,0,0,0,0,np.pi,0,0,0]
-    n_2=n**2
-    pmp_tot=4*n_2-2
-    boundarys=[]
-    boundary=(0,50)
-    for bnds in range(pmp_tot):
-        if bnds<b1:
-            boundarys.append(boundary)
-        else:
-            boundarys.append((0,2*np.pi))
+    # n_2=n**2
+    # pump_tot=4*n_2-2
+    # b1=2*n_2-1
+    # boundarys=[]
+    # boundary=(0,50)
+    # for bnds in range(pmp_tot):
+    #     if bnds<b1:
+    #         boundarys.append(boundary)
+    #     else:
+    #         boundarys.append((0,2*np.pi))
     
-    out=minimize(optimizationfunction,pump,n,method ='nelder-mead',bounds=boundarys)
-    pump1=out.x
+    # out=minimize(optimizationfunction,pump,n,method ='Powell',bounds=boundarys)
+    out=cma.fmin(optimizationfunction,pump,0.2,args=(n,))
+    #pump1=out.x
+    pump1=out[0]
     return pump1
+
 
 def Mmatrixmaker(pump,n):
     pumpinfo=np.array_split(pump,2)
@@ -279,7 +296,7 @@ def Mmatrixmaker(pump,n):
     
     
     #bias point
-    phi_DC = 0.6*np.pi
+    # phi_DC = 0.6*np.pi
     
     #------generate scattering matrix--------------
     #using only up to first order
@@ -317,17 +334,21 @@ n_2=n**2
 pmp_tot=4*n_2-2
 b1=2*n_2-1
 pump=np.zeros(pmp_tot)
-#pump1=optimizer(n,pump)
-pump1=[0,0,0,30,0,0,0,0,0,0,np.pi,0,0,0]
+pump1=optimizer(n,pump)
+#pump1=[0,0,0,30,0,0,0,0,0,0,0,0,0,0]
 #pump1=[0,0,30,30,30,0,0,0,0,0,np.pi,0,0,0]
 pumpamp=pump1[:b1]
 pumpphi=pump1[b1:]
 range1=np.arange(b1)
 C1=covariance(pump1,n)
+null=calculateNullifiers(C1[0],n)
 M=Mmatrixmaker(pump1,n)
 M1=np.abs(M)
 
 output=C1[0]   
+pump3=[0,0,30,30,30,0,0,0,0,0,np.pi,0,0,0]
+C3=covariance(pump3,n)
+Teori_case=C3[0]
 
 plt.figure(0)
 plt.bar(range1,pumpamp)
@@ -348,6 +369,12 @@ plt.imshow(output)
 plt.colorbar()
 plt.show()
 plt.title("output")
+
+plt.figure(2)
+plt.imshow(Teori_case)
+plt.colorbar()
+plt.show()
+plt.title("Target case")
 
 
 # fig, ax = plt.subplots(1)
