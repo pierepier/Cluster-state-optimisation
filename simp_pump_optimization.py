@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Oct 18 12:56:29 2021
+Created on Mon Oct 25 10:39:19 2021
 
 @author: parham
 """
 
-# -*- coding: utf-8 -*-
 """
 Created on Thu Aug 12 22:26:54 2021
 
@@ -43,6 +42,7 @@ import scipy.linalg as LA
 import matplotlib.pyplot as plt 
 import cma 
 import ipdb
+
 def scale(X, x_min, x_max):
     nom = (X-X.min(axis=0))*(x_max-x_min)
     denom = X.max(axis=0) - X.min(axis=0)
@@ -57,17 +57,16 @@ def permute_matrix(matrix, d):
         perm[2*i+1,d+i] = 1
     return perm.transpose() @ matrix @ perm
 
-
-def covariance(pumpamp,n):
-    pump=np.array(pumpamp)
-    pump_length=len(pump)
+def covariance(pump,n):
+    pump_amp=np.array(pump)
+    pump_amp=np.append(pump_amp,[0])
+    pump_amp=np.append([0],pump_amp)
+    pump_length=len(pump_amp)
     pump_phase=np.zeros(pump_length)
-    for phs in range (pump_length):
-        if pump[phs]<0:
-            pump_phase[phs]=np.pi
-       
-    #number of modes in covariance matrix
     
+    for phs in range (pump_length):
+        if pump_amp[phs]<0:
+            pump_phase[phs]=np.pi
     n_modes=(pump_length+1)//2
      #mode index
      #generates a comb of modes centered on index 0 
@@ -92,11 +91,10 @@ def covariance(pumpamp,n):
     
     #-----------set pump positions and strengths -------------------
     #pump mode positions, enter a numpy array
-    
-    pump_pos=np.asarray(np.where(pump!=0))
+    pump_pos=np.asarray(np.where(pump_amp!=0))
     pump_position=pump_pos[0]
     #effective pump amplitude  
-    pump_strength = pump[pump_position]*np.exp(1j*pump_phase[pump_position])
+    pump_strength = np.absolute(pump_amp[pump_position])*np.exp(1j*pump_phase[pump_position])
     
     #-------------- resonances and losses --------------------------
     
@@ -111,7 +109,7 @@ def covariance(pumpamp,n):
     
     
     #bias point
-    #phi_DC = 0.6*np.pi
+    phi_DC = 0.6*np.pi
     
     #------generate scattering matrix--------------
     #using only up to first order
@@ -230,11 +228,11 @@ def calculateNullifiers(covar,n):
 
 
 def optimizationfunction(pump,n):
-    pump2=[0,0,30,-30,30,0,0]
-    C2=covariance(pump2,n)
+    # pump2=[0,30,-30,30,0]
+    # C2=covariance(pump2,n)
     C=covariance(pump,n)
-    #diff=C[2]
-    diff=np.linalg.norm(C2[0]-C[0])
+    diff=C[2]
+    #diff=np.linalg.norm(C2[0]-C[0])
     #covar=C[0]
     #nullifiers=calculateNullifiers(covar,n)
     #limit=np.max(nullifiers)
@@ -244,13 +242,16 @@ def optimizationfunction(pump,n):
 
 def optimizer(n,pump):
     # n_2=n**2
-    # pump_tot=2*n_2-1
+    # pump_tot=4*n_2-2
     # b1=2*n_2-1
     # boundarys=[]
     # boundary=(0,50)
     # for bnds in range(pmp_tot):
-    #     boundarys.append(boundary)
-
+    #     if bnds<b1:
+    #         boundarys.append(boundary)
+    #     else:
+    #         boundarys.append((0,2*np.pi))
+    
     # out=minimize(optimizationfunction,pump,n,method ='Powell',bounds=boundarys)
     out=cma.fmin(optimizationfunction,pump,0.2,args=(n,))
     #pump1=out.x
@@ -258,16 +259,16 @@ def optimizer(n,pump):
     return pump1
 
 
-def Mmatrixmaker(pumpamp,n):
-    pump=np.array(pumpamp)
-    pump_length=len(pump)
+def Mmatrixmaker(pump,n):
+    pump_amp=np.array(pump)
+    pump_amp=np.append(pump_amp,[0])
+    pump_amp=np.append([0],pump_amp)
+    pump_length=len(pump_amp)
     pump_phase=np.zeros(pump_length)
-    for phs in range (pump_length):
-        if pump[phs]<0:
-            pump_phase[phs]=np.pi
-       
-    #number of modes in covariance matrix
     
+    for phs in range (pump_length):
+        if pump_amp[phs]<0:
+            pump_phase[phs]=np.pi
     n_modes=(pump_length+1)//2
      #mode index
      #generates a comb of modes centered on index 0 
@@ -292,11 +293,10 @@ def Mmatrixmaker(pumpamp,n):
     
     #-----------set pump positions and strengths -------------------
     #pump mode positions, enter a numpy array
-    
-    pump_pos=np.asarray(np.where(pump!=0))
+    pump_pos=np.asarray(np.where(pump_amp!=0))
     pump_position=pump_pos[0]
     #effective pump amplitude  
-    pump_strength = pump[pump_position]*np.exp(1j*pump_phase[pump_position])
+    pump_strength = np.absolute(pump_amp[pump_position])*np.exp(1j*pump_phase[pump_position])
     
     #-------------- resonances and losses --------------------------
     
@@ -311,7 +311,7 @@ def Mmatrixmaker(pumpamp,n):
     
     
     #bias point
-    #phi_DC = 0.6*np.pi
+    phi_DC = 0.6*np.pi
     
     #------generate scattering matrix--------------
     #using only up to first order
@@ -342,32 +342,33 @@ def Mmatrixmaker(pumpamp,n):
         M[s, s] = diag_val
         M[s+n_modes, s+n_modes] = diag_val_conj
   
-    
     return M
 
 n=2
 n_2=n**2
-pmp_tot=2*n_2-1
+pmp_tot=2*n_2-3
 b1=2*n_2-1
 pump=np.zeros(pmp_tot)
 pump1=optimizer(n,pump)
-#pump1=np.array([0,0,0,30,0,0,0])
-#pump1=np.array([0,0,30,-30,30,0,0])
-pumpamp=pump1[:b1]
-range1=np.arange(b1)
+#pump1=[0,0,30,0,0]
+#pump1=[0,30,30,30,0]
+
+pump2=np.append(pump1,[0])
+pump2=np.append([0],pump2)
 C1=covariance(pump1,n)
 null=calculateNullifiers(C1[0],n)
 M=Mmatrixmaker(pump1,n)
 M1=np.abs(M)
+range1=np.arange(b1)
 
 output=C1[0]   
-pump3=[0,0,30,-30,30,0,0]
-C3=covariance(pump3,n)
-#Teori_case=C1[1]
-Teori_case=C3[0]
+pump3=[0,30,-30,30,0]
+# C3=covariance(pump3,n)
+# Teori_case=C3[0]
+Teori_case=C1[1]
 
 plt.figure(0)
-plt.bar(range1,pumpamp)
+plt.bar(range1,pump2)
 plt.ylabel("The amplitude")
 plt.xlabel("The pump index")
 plt.xticks(range1)
@@ -391,16 +392,4 @@ plt.imshow(Teori_case)
 plt.colorbar()
 plt.show()
 plt.title("Target case")
-
-
-# fig, ax = plt.subplots(1)
-# outputplot=ax.imshow(M_real)
-# ax.set_title("M_real")
-# plt.colorbar(M_real)
-
-
-# fig1, ax1  = plt.subplots(1)
-# outputplot=ax1.imshow(output)
-# ax1.set_title("output")
-# plt.colorbar(outputplot)
- 
+    

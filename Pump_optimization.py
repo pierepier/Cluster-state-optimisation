@@ -35,6 +35,7 @@ from scipy.optimize import minimize
 import scipy.linalg as LA    
 import matplotlib.pyplot as plt 
 import cma 
+import ipdb
  
 def scale(X, x_min, x_max):
     nom = (X-X.min(axis=0))*(x_max-x_min)
@@ -172,7 +173,6 @@ def covariance(pump,n):
     V_outputxp=np.real(S_xp.dot(V_input).dot( np.transpose(S_xp) ))
     #rewrite in xxpp
     V_output=permute_matrix(V_outputxp, n_modes )
-    
     G=nx.grid_2d_graph(n, n, periodic=False, create_using=None) 
     adj=nx.to_numpy_matrix(G)
     # $U=(I+iV)(V^2+I)^{-1/2}=AB^{-1/2}
@@ -189,6 +189,7 @@ def covariance(pump,n):
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
     V_teori=np.dot(SQ,S.T)
+    
     #calculate the differance and norm.
     V_diff=np.linalg.norm(V_teori-V_output)
     return [V_output,V_teori,V_diff]  
