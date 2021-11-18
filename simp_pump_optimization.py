@@ -27,7 +27,7 @@ Parameters
         the amplitudes with the same indexing.
         
         example:
-            pump=[0,0,30,30,30,0,0,0,0,0,np.pi,0,0,0]
+            pump=[0,30,30,30,0]
 
 n_edges : *int*
         Indicates the size of the square cluster based on the number of 
@@ -43,11 +43,6 @@ import matplotlib.pyplot as plt
 import cma 
 import ipdb
 
-def scale(X, x_min, x_max):
-    nom = (X-X.min(axis=0))*(x_max-x_min)
-    denom = X.max(axis=0) - X.min(axis=0)
-    denom[denom==0] = 1
-    return x_min + nom/denom
 
 ##reorder cov matrix between (x1,p1,...,xn, pn) and (x1,...xn, p1,...,pn)
 def permute_matrix(matrix, d):
@@ -199,7 +194,7 @@ def covariance(pump,n):
     R=0.5
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
-    V_teori=np.dot(SQ,S.T)
+    V_teori=10*np.dot(SQ,S.T)
     #calculate the differance and norm.
     V_diff=np.linalg.norm(V_teori-V_output)
     return [V_output,V_teori,V_diff]  
@@ -349,9 +344,9 @@ n_2=n**2
 pmp_tot=2*n_2-3
 b1=2*n_2-1
 pump=np.zeros(pmp_tot)
-pump1=optimizer(n,pump)
+#pump1=optimizer(n,pump)
 #pump1=[0,0,30,0,0]
-#pump1=[0,30,30,30,0]
+pump1=[0,30,-30,30,0]
 
 pump2=np.append(pump1,[0])
 pump2=np.append([0],pump2)
