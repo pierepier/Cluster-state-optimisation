@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 """
+Created on Wed Dec  8 12:10:38 2021
+
+@author: parham
+"""
+# -*- coding: utf-8 -*-
+"""
 Created on Mon Oct 25 10:39:19 2021
 
 @author: parham
@@ -62,19 +68,18 @@ def rotation_matrix(angles):
 
 def covariance(pump,n): 
     modenumber=n**2
-    pump_amp=np.array(pump)
+    pump_info=np.array(pump)
     arbetrary=len(pump)
-    rotation=pump_amp[arbetrary-modenumber:]
-    pump_amp=pump_amp[:arbetrary-modenumber]  
+    rotation=pump_info[(arbetrary-modenumber):]
+    pump_info=pump_info[:(arbetrary-modenumber)]
+    pumpbase=np.array_split(pump_info,2)
+    pump_amp=pumpbase[0]
+    pump_phase=pumpbase[1]
     pump_amp=np.append(pump_amp,[0])
     pump_amp=np.append([0],pump_amp)
+    pump_phase=np.append(pump_amp,[0])
+    pump_phase=np.append([0],pump_amp)
     pump_length=len(pump_amp)
-    pump_phase=np.zeros(pump_length)
-     
-    
-    for phs in range (pump_length):
-        if pump_amp[phs]<0:
-            pump_phase[phs]=np.pi
     n_modes=(pump_length+1)//2
      #mode index
      #generates a comb of modes centered on index 0 
@@ -87,7 +92,7 @@ def covariance(pump,n):
     mode_index=n_index[0::2]
     #--------3 wave mixing -----------------------
     #pump_frequencies (kHz)
-    p1_freq = 2*  2*np.pi*4.3023e6
+    p1_freq = 2* 2*np.pi*4.3023e6
     p2_freq = 2*  2*np.pi*4.2977e6
     
     #mode frequencies, set up frequency comb
@@ -208,7 +213,7 @@ def covariance(pump,n):
     R=1.2
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
-    V_teori=np.dot(SQ,S.T)
+    V_teori=4*np.dot(SQ,S.T)
     #calculate the differance and norm.
     V_diff=np.linalg.norm(V_teori-V_output)
     return [V_output,V_teori,V_diff,rotation]  
@@ -268,17 +273,18 @@ def optimizer(n,pump):
     return pump1
 
 
-def Mmatrixmaker(pump,n):
-    pump_amp=np.array(pump) 
+def Mmatrixmaker(pumpsmall,n):
+    pumpinfo=np.array_split(pumpsmall,2)
+    pump_amp=pumpinfo[0]
     pump_amp=np.append(pump_amp,[0])
     pump_amp=np.append([0],pump_amp)
+
+    pump_phase=pumpinfo[1]
+    pump_phase=np.append(pump_phase,[0])
+    pump_phase=np.append([0],pump_phase)
     pump_length=len(pump_amp)
-    pump_phase=np.zeros(pump_length)
-    
-    for phs in range (pump_length):
-        if pump_amp[phs]<0:
-            pump_phase[phs]=np.pi
     n_modes=(pump_length+1)//2
+    #number of modes in covari
      #mode index
      #generates a comb of modes centered on index 0 
      #the index for the pump positions considered remember the firt and last one 
@@ -353,7 +359,7 @@ def Mmatrixmaker(pump,n):
 
 n=2
 n_2=n**2
-pmp_tot=2*n_2+(n_2-3)
+pmp_tot=4*n_2+(n_2-6)
 b1=2*n_2-1
 pump=np.zeros(pmp_tot)
 pump1=optimizer(n,pump)
@@ -366,17 +372,25 @@ Teori_case=C1[1]
 output=C1[0]
 framerot=C1[3]
 print(framerot)
+
 null=calculateNullifiers(C1[0],n)
-pump2=pump1[:pmp_tot-n_2] 
+
+pump2=pump1[:(pmp_tot-n_2)]
+pumpinfo=np.array_split(pump2,2)
+pump_amp=pumpinfo[0]
+pump_amp=np.append(pump_amp,[0])
+pump_amp=np.append([0],pump_amp)
+pump_phase=pumpinfo[1]
+pump_phase=np.append(pump_phase,[0])
+pump_phase=np.append([0],pump_phase) 
+
 M=Mmatrixmaker(pump2,n)
 M1=np.abs(M)
 range1=np.arange(b1)
-pump2=np.append(pump2,[0])
-pump2=np.append([0],pump2)
 
 
 plt.figure(0)
-plt.bar(range1,pump2)
+plt.bar(range1,pump_amp)
 plt.ylabel("The amplitude")
 plt.xlabel("The pump index")
 plt.xticks(range1)
