@@ -142,7 +142,7 @@ def covariance(pump,n):
                 M[s,i1+n_modes] = conver_rate
                 M[s+n_modes, i1] = -np.conjugate(conver_rate)
     
-        diag_val = comb_freqs[n] - omega_0 + 1j*gamma/2
+        diag_val = comb_freqs[s] - omega_0 + 1j*gamma/2
         diag_val_conj = -np.conjugate(diag_val)
     
         M[s, s] = diag_val

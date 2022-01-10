@@ -30,10 +30,11 @@ Parameters
         relative the previously  explained indexing leaving all the pumpless
         points equal to "0".The second half is then choosen to express the
         phase of each case make sure that they are in the same position as the
-        the amplitudes with the same indexing.
+        the amplitudes with the same indexing. we remove the two edge cases and
+        rotation factors that are equal to the number of modes.
         
         example:
-            pump=[0,30,30,30,0]
+            pump=[0,20,20,20,0,0,0,np.pi,0,0,0,0,0,0]
 
 n_edges : *int*
         Indicates the size of the square cluster based on the number of 
@@ -92,8 +93,8 @@ def covariance(pump,n):
     mode_index=n_index[0::2]
     #--------3 wave mixing -----------------------
     #pump_frequencies (kHz)
-    p1_freq = 2* 2*np.pi*4.3023e6
-    p2_freq = 2*  2*np.pi*4.2977e6
+    p1_freq = 2* 2*np.pi*4.3023
+    p2_freq = 2*  2*np.pi*4.2977
     
     #mode frequencies, set up frequency comb
     center_comb_freq = (p2_freq + p1_freq)/4
@@ -147,7 +148,7 @@ def covariance(pump,n):
                 M[s,i1+n_modes] = conver_rate
                 M[s+n_modes, i1] = -np.conjugate(conver_rate)
     
-        diag_val = comb_freqs[n] - omega_0 + 1j*gamma/2
+        diag_val = comb_freqs[s] - omega_0 + 1j*gamma/2
         diag_val_conj = -np.conjugate(diag_val)
     
         M[s, s] = diag_val
@@ -213,9 +214,10 @@ def covariance(pump,n):
     R=1.2
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
-    V_teori=4*np.dot(SQ,S.T)
+    V_teori=np.dot(SQ,S.T)
     #calculate the differance and norm.
     V_diff=np.linalg.norm(V_teori-V_output)
+    
     return [V_output,V_teori,V_diff,rotation]  
 
 
@@ -242,6 +244,7 @@ def calculateNullifiers(covar,n):
 
 
 def optimizationfunction(pump,n):
+  
     # pump2=[0,30,-30,30,0]
     # C2=covariance(pump2,n)
     C=covariance(pump,n)
@@ -254,21 +257,14 @@ def optimizationfunction(pump,n):
     return diff
 
 
-def optimizer(n,pump):
-    # n_2=n**2
-    # pump_tot=4*n_2-2
-    # b1=2*n_2-1
-    # boundarys=[]
-    # boundary=(0,50)
-    # for bnds in range(pmp_tot):
-    #     if bnds<b1:
-    #         boundarys.append(boundary)
-    #     else:
-    #         boundarys.append((0,2*np.pi))
-    
+def optimizer(n,pump): 
     #out=minimize(optimizationfunction,pump,n,method ='Nelder-Mead')
-    out=cma.fmin(optimizationfunction,pump,0.2,args=(n,))
     #pump1=out.x
+    # out = cma.fmin2(optimizationfunction, pump, 0.2,args=(n,))
+    # pump1=out[0]
+    es = cma.CMAEvolutionStrategy(pump, 0.2,{'bounds': [[0], [50]]})
+    es.optimize(optimizationfunction,args=(n,))
+    out=es.result_pretty()
     pump1=out[0]
     return pump1
 
@@ -296,8 +292,8 @@ def Mmatrixmaker(pumpsmall,n):
     mode_index=n_index[0::2]
     #--------3 wave mixing -----------------------
     #pump_frequencies (kHz)
-    p1_freq = 2*  2*np.pi*4.3023e6
-    p2_freq = 2*  2*np.pi*4.2977e6
+    p1_freq = 2*  2*np.pi*4.3023
+    p2_freq = 2*  2*np.pi*4.2977
     
     #mode frequencies, set up frequency comb
     center_comb_freq = (p2_freq + p1_freq)/4
@@ -349,7 +345,7 @@ def Mmatrixmaker(pumpsmall,n):
                 M[s,i1+n_modes] = conver_rate
                 M[s+n_modes, i1] = -np.conjugate(conver_rate)
     
-        diag_val = comb_freqs[n] - omega_0 + 1j*gamma/2
+        diag_val = comb_freqs[s] - omega_0 + 1j*gamma/2
         diag_val_conj = -np.conjugate(diag_val)
     
         M[s, s] = diag_val
@@ -363,8 +359,7 @@ pmp_tot=4*n_2+(n_2-6)
 b1=2*n_2-1
 pump=np.zeros(pmp_tot)
 pump1=optimizer(n,pump)
-#pump1=[0,0,30,0,0,0]
-#pump1=[0,30,-30,30,0,0]
+#pump1=[0,20,20,20,0,0,0,np.pi,0,0,0,0,0,0]
 
 
 C1=covariance(pump1,n)
@@ -374,7 +369,8 @@ framerot=C1[3]
 print(framerot)
 
 null=calculateNullifiers(C1[0],n)
-
+nullref=calculateNullifiers(C1[1], n)
+nulldif=np.divide(null,nullref)
 pump2=pump1[:(pmp_tot-n_2)]
 pumpinfo=np.array_split(pump2,2)
 pump_amp=pumpinfo[0]
