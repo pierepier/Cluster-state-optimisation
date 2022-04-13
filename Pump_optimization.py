@@ -243,8 +243,9 @@ def optimizer(n,pump):
     #         boundarys.append((0,2*np.pi))
     
     # out=minimize(optimizationfunction,pump,n,method ='Powell',bounds=boundarys)
-    out=cma.fmin(optimizationfunction,pump,0.2,args=(n,))
-    #pump1=out.x
+    es = cma.CMAEvolutionStrategy(pump, 0.2,{'bounds': [[0], [50]]})
+    es.optimize(optimizationfunction,args=(n,))
+    out=es.result_pretty()
     pump1=out[0]
     return pump1
 

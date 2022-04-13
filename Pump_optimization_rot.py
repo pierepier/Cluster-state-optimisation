@@ -67,6 +67,14 @@ def rotation_matrix(angles):
     return LA.block_diag(*single_mode_rotations)
 
 
+
+def NormalizeData(data):
+    return (data - np.min(data)) / (np.max(data) - np.min(data))
+
+
+
+
+
 def covariance(pump,n): 
     modenumber=n**2
     pump_info=np.array(pump)
@@ -90,17 +98,17 @@ def covariance(pump,n):
     n_index = np.arange(pump_length)//2
      
      #the indexes for modes in the system
-    mode_index=n_index[0::2]
+    mode_index=n_index[1::2]
     #--------3 wave mixing -----------------------
     #pump_frequencies (kHz)
-    p1_freq = 2* 2*np.pi*4.3023
-    p2_freq = 2*  2*np.pi*4.2977
+    p1_freq = 2* 2*np.pi*4.3023e6
+    p2_freq = 2*  2*np.pi*4.2977e6
     
     #mode frequencies, set up frequency comb
     center_comb_freq = (p2_freq + p1_freq)/4
     comb_det = np.abs(p2_freq - p1_freq)/4
     
-    comb_freqs = center_comb_freq + (mode_index - n_modes//2 )*comb_det
+    comb_freqs = center_comb_freq + (mode_index - n_modes )*comb_det
     
     
     #-----------set pump positions and strengths -------------------
@@ -145,6 +153,7 @@ def covariance(pump,n):
                 #print("n %d, pos %d, i1 %d"%(s, pos, i1))
                 #coupling strength given below
                 conver_rate = -pump_strength[pos]
+                #conver_rate = -omega_0/4*np.tan(phi_DC)*pump_strength[s]*np.pi
                 M[s,i1+n_modes] = conver_rate
                 M[s+n_modes, i1] = -np.conjugate(conver_rate)
     
@@ -214,7 +223,7 @@ def covariance(pump,n):
     R=1.2
     Q=np.block([[np.exp(-2*R)*I,np.zeros_like(I)],[np.zeros_like(I),np.exp(2*R)*I]])
     SQ=np.dot(S,Q)
-    V_teori=np.dot(SQ,S.T)
+    V_teori=NormalizeData(np.dot(SQ,S.T))
     #calculate the differance and norm.
     V_diff=np.linalg.norm(V_teori-V_output)
     
@@ -299,7 +308,7 @@ def Mmatrixmaker(pumpsmall,n):
     center_comb_freq = (p2_freq + p1_freq)/4
     comb_det = np.abs(p2_freq - p1_freq)/4
     
-    comb_freqs = center_comb_freq + (mode_index - n_modes//2 )*comb_det
+    comb_freqs = center_comb_freq + (mode_index - n_modes )*comb_det
     
     
     #-----------set pump positions and strengths -------------------
@@ -342,6 +351,7 @@ def Mmatrixmaker(pumpsmall,n):
                 #print("n %d, pos %d, i1 %d"%(s, pos, i1))
                 #coupling strength given below
                 conver_rate = -pump_strength[pos]
+                #conver_rate = -omega_0/4*np.tan(phi_DC)*pump_strength[s]*np.pi
                 M[s,i1+n_modes] = conver_rate
                 M[s+n_modes, i1] = -np.conjugate(conver_rate)
     
